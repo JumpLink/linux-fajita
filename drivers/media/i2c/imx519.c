@@ -741,7 +741,7 @@ static const struct imx519_mode imx519_modes_cphy[] = {
 		}
 	},
 	{
-		/* 1080p 60fps */
+		/* 1080p, 60fps maximum, 30fps default */
 		.width = 1920,
 		.height = 1080,
 		.line_length_pix = 0x25D9,
@@ -757,7 +757,7 @@ static const struct imx519_mode imx519_modes_cphy[] = {
 		},
 		.timeperframe_default = {
 			.numerator = 100,
-			.denominator = 6000
+			.denominator = 3000
 		},
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1920x1080_cphy_regs),
@@ -765,7 +765,7 @@ static const struct imx519_mode imx519_modes_cphy[] = {
 		}
 	},
 	{
-		/* 720p 120fps */
+		/* 720p, 120fps maximum, 30fps default */
 		.width = 1280,
 		.height = 720,
 		.line_length_pix = 0x1B3B,
@@ -781,7 +781,7 @@ static const struct imx519_mode imx519_modes_cphy[] = {
 		},
 		.timeperframe_default = {
 			.numerator = 100,
-			.denominator = 12000
+			.denominator = 3000
 		},
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1280x720_cphy_regs),
