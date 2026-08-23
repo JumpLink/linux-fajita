@@ -37,7 +37,7 @@
 
 /* Analog gain control */
 #define IMX371_ANA_GAIN_MIN		0
-#define IMX371_ANA_GAIN_MAX		480
+#define IMX371_ANA_GAIN_MAX		960
 #define IMX371_ANA_GAIN_STEP		1
 #define IMX371_ANA_GAIN_DEFAULT		0x0
 
