@@ -21,10 +21,12 @@
 
 /* V_TIMING internal */
 #define IMX371_VTS_30FPS		3552
+#define IMX371_VTS_BINNED		2544
 #define IMX371_VTS_MAX			65525
 
 /* HBLANK control - read only */
 #define IMX371_PPL_DEFAULT		6032
+#define IMX371_PPL_BINNED		3488
 
 /* Exposure control */
 #define IMX371_EXPOSURE_OFFSET		10
@@ -119,6 +121,21 @@ static const struct cci_reg_sequence mipi_1308mbps_24mhz_4l[] = {
 	{ CCS_R_PLL_MODE, 1 },
 	{ CCS_R_CSI_LANE_MODE, 3 },
 	{ IMX371_REG_REQ_LINK_BIT_RATE_MBPS_H, 1308 * 4 },
+	{ IMX371_REG_REQ_LINK_BIT_RATE_MBPS_L, 0 },
+};
+
+static const struct cci_reg_sequence mipi_798mbps_24mhz_4l[] = {
+	{ CCS_R_EXTCLK_FREQUENCY_MHZ, 0x1800 },
+	{ CCS_R_VT_PIX_CLK_DIV, 5 },
+	{ CCS_R_VT_SYS_CLK_DIV, 4 },
+	{ CCS_R_PRE_PLL_CLK_DIV, 4 },
+	{ CCS_R_PLL_MULTIPLIER, 222 },
+	{ CCS_R_OP_SYS_CLK_DIV, 2 },
+	{ CCS_R_OP_PRE_PLL_CLK_DIV, 4 },
+	{ CCS_R_OP_PLL_MULTIPLIER, 266 },
+	{ CCS_R_PLL_MODE, 1 },
+	{ CCS_R_CSI_LANE_MODE, 3 },
+	{ IMX371_REG_REQ_LINK_BIT_RATE_MBPS_H, 798 * 4 },
 	{ IMX371_REG_REQ_LINK_BIT_RATE_MBPS_L, 0 },
 };
 
@@ -358,6 +375,98 @@ static const struct cci_reg_sequence mode_4656x3496_regs[] = {
 };
 
 /*
+ * The IMX371 uses a Quad Bayer colour filter. In the full-resolution mode
+ * each 2x2 block has the same colour, so exposing it as regular RGGB produces
+ * a monochrome-looking image with a four-pixel grid. The sensor's 2x2 binned
+ * mode combines each same-colour block in hardware and outputs regular RGGB.
+ */
+static const struct cci_reg_sequence mode_2304x1728_regs[] = {
+	{CCI_REG8(0x0112), 0x0A},
+	{CCI_REG8(0x0113), 0x0A},
+	{CCI_REG8(0x0114), 0x03},
+	{CCI_REG8(0x0342), 0x0D},
+	{CCI_REG8(0x0343), 0xA0},
+	{CCI_REG8(0x0340), 0x09},
+	{CCI_REG8(0x0341), 0xF0},
+	{CCI_REG8(0x0344), 0x00},
+	{CCI_REG8(0x0345), 0x00},
+	{CCI_REG8(0x0346), 0x00},
+	{CCI_REG8(0x0347), 0x00},
+	{CCI_REG8(0x0348), 0x12},
+	{CCI_REG8(0x0349), 0x2F},
+	{CCI_REG8(0x034A), 0x0D},
+	{CCI_REG8(0x034B), 0xA7},
+	{CCI_REG8(0x0381), 0x01},
+	{CCI_REG8(0x0383), 0x01},
+	{CCI_REG8(0x0385), 0x01},
+	{CCI_REG8(0x0387), 0x01},
+	{CCI_REG8(0x0900), 0x01},
+	{CCI_REG8(0x0901), 0x22},
+	{CCI_REG8(0x0902), 0x08},
+	{CCI_REG8(0x3F4C), 0x81},
+	{CCI_REG8(0x3F4D), 0x81},
+	{CCI_REG8(0x4254), 0x7F},
+	{CCI_REG8(0x0401), 0x00},
+	{CCI_REG8(0x0404), 0x00},
+	{CCI_REG8(0x0405), 0x10},
+	{CCI_REG8(0x0408), 0x00},
+	{CCI_REG8(0x0409), 0x0C},
+	{CCI_REG8(0x040A), 0x00},
+	{CCI_REG8(0x040B), 0x0A},
+	{CCI_REG8(0x040C), 0x09},
+	{CCI_REG8(0x040D), 0x00},
+	{CCI_REG8(0x040E), 0x06},
+	{CCI_REG8(0x040F), 0xC0},
+	{CCI_REG8(0x034C), 0x09},
+	{CCI_REG8(0x034D), 0x00},
+	{CCI_REG8(0x034E), 0x06},
+	{CCI_REG8(0x034F), 0xC0},
+	{CCI_REG8(0x0301), 0x05},
+	{CCI_REG8(0x0303), 0x04},
+	{CCI_REG8(0x0305), 0x04},
+	{CCI_REG8(0x0306), 0x00},
+	{CCI_REG8(0x0307), 0xDE},
+	{CCI_REG8(0x030B), 0x02},
+	{CCI_REG8(0x030D), 0x04},
+	{CCI_REG8(0x030E), 0x01},
+	{CCI_REG8(0x030F), 0x0A},
+	{CCI_REG8(0x0310), 0x01},
+	{CCI_REG8(0x0820), 0x0C},
+	{CCI_REG8(0x0821), 0x78},
+	{CCI_REG8(0x0822), 0x00},
+	{CCI_REG8(0x0823), 0x00},
+	{CCI_REG8(0xBC41), 0x01},
+	{CCI_REG8(0x0106), 0x00},
+	{CCI_REG8(0x0B00), 0x00},
+	{CCI_REG8(0x0B05), 0x01},
+	{CCI_REG8(0x0B06), 0x01},
+	{CCI_REG8(0x3230), 0x00},
+	{CCI_REG8(0x3602), 0x01},
+	{CCI_REG8(0x3C00), 0x7B},
+	{CCI_REG8(0x3C01), 0x69},
+	{CCI_REG8(0x3C02), 0x77},
+	{CCI_REG8(0x3C03), 0x66},
+	{CCI_REG8(0x3C04), 0x00},
+	{CCI_REG8(0x3C05), 0x9C},
+	{CCI_REG8(0x3C06), 0x14},
+	{CCI_REG8(0x3C07), 0x00},
+	{CCI_REG8(0x3C08), 0x01},
+	{CCI_REG8(0x3F14), 0x00},
+	{CCI_REG8(0x3F17), 0x00},
+	{CCI_REG8(0x3F3C), 0x00},
+	{CCI_REG8(0x3F78), 0x02},
+	{CCI_REG8(0x3F79), 0x44},
+	{CCI_REG8(0x3F7C), 0x00},
+	{CCI_REG8(0x3F7D), 0x00},
+	{CCI_REG8(0x0202), 0x09},
+	{CCI_REG8(0x0203), 0xDC},
+	{CCI_REG8(0x0204), 0x00},
+	{CCI_REG8(0x0205), 0x00},
+	{CCI_REG8(0x020E), 0x01},
+	{CCI_REG8(0x020F), 0x00},
+};
+
+/*
  * The supported formats.
  * This table MUST contain 4 entries per format, to cover the various flip
  * combinations in the order
@@ -393,6 +502,7 @@ static const char * const imx371_supply_name[] = {
 
 enum {
 	IMX371_LINK_FREQ_1308MBPS,
+	IMX371_LINK_FREQ_798MBPS,
 };
 
 /*
@@ -419,6 +529,7 @@ static u64 link_freq_to_pixel_rate(u64 f, const struct imx371_link_cfg *link_cfg
 
 static const s64 link_freq_menu_items_24[] = {
 	654000000ULL,
+	399000000ULL,
 };
 
 #define REGS(_list) { .num_of_regs = ARRAY_SIZE(_list), .regs = _list, }
@@ -430,6 +541,15 @@ static const struct imx371_link_freq_config link_freq_configs_24[] = {
 			[IMX371_4_LANE_MODE] = {
 				.lf_to_pix_rate_factor = 4,
 				.reg_list = REGS(mipi_1308mbps_24mhz_4l),
+			},
+		}
+	},
+	[IMX371_LINK_FREQ_798MBPS] = {
+		.pixels_per_line = IMX371_PPL_BINNED,
+		.link_cfg = {
+			[IMX371_4_LANE_MODE] = {
+				.lf_to_pix_rate_factor = 4,
+				.reg_list = REGS(mipi_798mbps_24mhz_4l),
 			},
 		}
 	},
@@ -451,6 +571,23 @@ static const struct imx371_mode supported_modes[] = {
 			.top = IMX371_PIXEL_ARRAY_TOP,
 			.width = IMX371_PIXEL_ARRAY_WIDTH,
 			.height = IMX371_PIXEL_ARRAY_HEIGHT,
+		},
+	},
+	{
+		.width = 2304,
+		.height = 1728,
+		.vts_def = IMX371_VTS_BINNED,
+		.vts_min = IMX371_VTS_BINNED,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_2304x1728_regs),
+			.regs = mode_2304x1728_regs,
+		},
+		.link_freq_index = IMX371_LINK_FREQ_798MBPS,
+		.crop = {
+			.left = 24,
+			.top = 20,
+			.width = 4608,
+			.height = 3456,
 		},
 	},
 };
