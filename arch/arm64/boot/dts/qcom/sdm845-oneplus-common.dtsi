@@ -643,7 +643,7 @@
 			imx371_ep: endpoint {
 				remote-endpoint = <&csiphy2_ep>;
 				data-lanes = <1 2 3 4>;
-				link-frequencies = /bits/ 64 <654000000>;
+				link-frequencies = /bits/ 64 <654000000 399000000>;
 			};
 		};
 	};
