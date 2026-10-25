@@ -338,6 +338,9 @@
 #define DCP_CURRENT_UA					1500000
 #define CURRENT_MAX_UA					DCP_CURRENT_UA
 
+/* polls (about 1 s each) to wait for APSD before restarting it */
+#define APSD_WAIT_POLLS					6
+
 /* pmi8998 registers represent current in increments of 1/40th of an amp */
 #define CURRENT_SCALE_FACTOR				25000
 #define SMB2_FLOAT_VOLTAGE_MIN_UV			3487500
@@ -386,6 +389,7 @@ struct smb_chip {
 	u8 initial_charge_enable;
 
 	struct delayed_work status_change_work;
+	unsigned int apsd_wait;
 	int cable_irq;
 	bool wakeup_enabled;
 
@@ -570,13 +574,22 @@ static void smb_status_change_work(struct work_struct *work)
 	}
 
 	if (rc < 0) {
-		rc = regmap_update_bits(chip->regmap, chip->base + CMD_APSD,
-					APSD_RERUN_BIT, APSD_RERUN_BIT);
+		/*
+		 * APSD can take well over a second to finish. Restarting it
+		 * on every poll keeps it from ever completing, so only kick
+		 * it again after it has had a few seconds to run.
+		 */
+		if (++chip->apsd_wait >= APSD_WAIT_POLLS) {
+			chip->apsd_wait = 0;
+			regmap_update_bits(chip->regmap, chip->base + CMD_APSD,
+					   APSD_RERUN_BIT, APSD_RERUN_BIT);
+			dev_dbg(chip->dev, "get charger type failed, rerun apsd\n");
+		}
 		schedule_delayed_work(&chip->status_change_work,
 				      msecs_to_jiffies(1000));
-		dev_dbg(chip->dev, "get charger type failed, rerun apsd\n");
 		return;
 	}
+	chip->apsd_wait = 0;
 
 	switch (charger_type) {
 	case POWER_SUPPLY_USB_TYPE_CDP:
