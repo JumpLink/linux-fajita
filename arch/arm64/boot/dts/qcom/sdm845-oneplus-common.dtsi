@@ -911,6 +911,8 @@
 };
 
 &pmi8998_charger {
+	/* input current limit follows the Type-C Rp / USB PD contract */
+	power-supplies = <&pmi8998_typec>;
 	status = "okay";
 };
 
