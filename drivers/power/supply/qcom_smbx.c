@@ -870,6 +870,15 @@ static const struct smb_init_register smb_init_seq[] = {
 	  .val = USBIN_HV_COLLAPSE_RESPONSE_BIT |
 		 USBIN_LV_COLLAPSE_RESPONSE_BIT | USBIN_AICL_EN_BIT },
 	/*
+	 * Re-run AICL periodically (shortest interval), as the downstream
+	 * driver does. Without it the hardware AICL only ever steps the input
+	 * limit down on VBUS dips (weak power banks, long cables) and never
+	 * recovers, until charging stops altogether.
+	 */
+	{ .addr = USBIN_AICL_OPTIONS_CFG,
+	  .mask = USBIN_AICL_RERUN_EN_BIT,
+	  .val = USBIN_AICL_RERUN_EN_BIT },
+	/*
 	 * Set pre charge current to default, the OnePlus 6 bootloader
 	 * sets this very conservatively.
 	 */
