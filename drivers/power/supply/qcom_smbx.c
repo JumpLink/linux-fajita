@@ -393,6 +393,9 @@ struct smb_chip {
 	struct iio_channel *usb_in_v_chan;
 
 	struct power_supply *chg_psy;
+
+	/* An enabled Type-C port driver owns the CC role/VCONN register */
+	bool typec_owned;
 };
 
 static enum power_supply_property smb_properties[] = {
@@ -888,6 +891,9 @@ static int smb_init_hw(struct smb_chip *chip)
 	int rc, i;
 
 	for (i = 0; i < ARRAY_SIZE(smb_init_seq); i++) {
+		if (chip->typec_owned &&
+		    smb_init_seq[i].addr == TYPE_C_INTRPT_ENB_SOFTWARE_CTRL)
+			continue;
 		dev_dbg(chip->dev, "%d: Writing 0x%02x to 0x%02x\n", i,
 			smb_init_seq[i].val, smb_init_seq[i].addr);
 		rc = regmap_update_bits(chip->regmap,
@@ -945,6 +951,7 @@ static int smb_probe(struct platform_device *pdev)
 	unsigned int charge_enable;
 	unsigned int float_voltage_sel;
 	int float_voltage_uv;
+	struct device_node *np;
 	int rc, irq;
 
 	chip = devm_kzalloc_obj(&pdev->dev, *chip);
@@ -986,6 +993,14 @@ static int smb_probe(struct platform_device *pdev)
 	if (rc)
 		return dev_err_probe(chip->dev, rc,
 				     "Couldn't register charging state rollback\n");
+
+	for_each_available_child_of_node(pdev->dev.parent->of_node, np) {
+		if (of_device_is_compatible(np, "qcom,pmi8998-typec")) {
+			chip->typec_owned = true;
+			of_node_put(np);
+			break;
+		}
+	}
 
 	rc = smb_init_hw(chip);
 	if (rc < 0)
