@@ -337,6 +337,9 @@
 #define CDP_CURRENT_UA					1500000
 #define DCP_CURRENT_UA					1500000
 #define CURRENT_MAX_UA					DCP_CURRENT_UA
+/* Type-C Rp "3 A" source, and the highest input limit the hardware accepts */
+#define TYPEC_3A_UA					3000000
+#define USBIN_ICL_MAX_UA				3000000
 
 /* polls (about 1 s each) to wait for APSD before restarting it */
 #define APSD_WAIT_POLLS					6
@@ -550,11 +553,18 @@ static int smb_set_current_limit(struct smb_chip *chip, unsigned int val)
 static void smb_status_change_work(struct work_struct *work)
 {
 	unsigned int charger_type, current_ua;
+	union power_supply_propval sup_val;
+	int sup_ua;
+	bool sup_pd;
 	int usb_online = 0;
 	int count, rc;
 	struct smb_chip *chip;
 
 	chip = container_of(work, struct smb_chip, status_change_work.work);
+
+	/* a supplier can queue us while the power supply is being registered */
+	if (!READ_ONCE(chip->chg_psy))
+		return;
 
 	smb_get_prop_usb_online(chip, &usb_online);
 	if (!usb_online)
@@ -591,17 +601,46 @@ static void smb_status_change_work(struct work_struct *work)
 	}
 	chip->apsd_wait = 0;
 
-	switch (charger_type) {
-	case POWER_SUPPLY_USB_TYPE_CDP:
-		current_ua = CDP_CURRENT_UA;
-		break;
-	case POWER_SUPPLY_USB_TYPE_DCP:
-		current_ua = DCP_CURRENT_UA;
-		break;
-	case POWER_SUPPLY_USB_TYPE_SDP:
-	default:
-		current_ua = SDP_CURRENT_UA;
-		break;
+	/*
+	 * A Type-C / USB PD port controller (tcpm) can be linked as our
+	 * supplier through the "power-supplies" DT property. It reports the
+	 * Rp advertisement or the negotiated PD contract current.
+	 */
+	sup_ua = 0;
+	sup_pd = false;
+	if (!power_supply_get_property_from_supplier(chip->chg_psy,
+						     POWER_SUPPLY_PROP_ONLINE,
+						     &sup_val) && sup_val.intval) {
+		if (!power_supply_get_property_from_supplier(chip->chg_psy,
+							     POWER_SUPPLY_PROP_CURRENT_MAX,
+							     &sup_val))
+			sup_ua = sup_val.intval;
+		if (!power_supply_get_property_from_supplier(chip->chg_psy,
+							     POWER_SUPPLY_PROP_USB_TYPE,
+							     &sup_val))
+			sup_pd = sup_val.intval != POWER_SUPPLY_USB_TYPE_C &&
+				 sup_val.intval != POWER_SUPPLY_USB_TYPE_UNKNOWN;
+	}
+
+	if (sup_pd && sup_ua > 0) {
+		/* PD contract: draw what the source promised (like the OnePlus driver) */
+		current_ua = min(sup_ua, USBIN_ICL_MAX_UA);
+	} else {
+		switch (charger_type) {
+		case POWER_SUPPLY_USB_TYPE_CDP:
+			current_ua = CDP_CURRENT_UA;
+			break;
+		case POWER_SUPPLY_USB_TYPE_DCP:
+			current_ua = DCP_CURRENT_UA;
+			/* A DCP behind an Rp 3 A Type-C source may use 3 A */
+			if (sup_ua >= TYPEC_3A_UA)
+				current_ua = TYPEC_3A_UA;
+			break;
+		case POWER_SUPPLY_USB_TYPE_SDP:
+		default:
+			current_ua = SDP_CURRENT_UA;
+			break;
+		}
 	}
 
 	smb_set_current_limit(chip, current_ua);
@@ -781,6 +820,14 @@ static irqreturn_t smb_handle_wdog_bark(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* The Type-C / PD supplier changed its advertised current: re-apply the limit */
+static void smb_external_power_changed(struct power_supply *psy)
+{
+	struct smb_chip *chip = power_supply_get_drvdata(psy);
+
+	mod_delayed_work(system_percpu_wq, &chip->status_change_work, 0);
+}
+
 static const struct power_supply_desc smb_psy_desc = {
 	.name = "pmi8998_charger",
 	.type = POWER_SUPPLY_TYPE_USB,
@@ -791,6 +838,7 @@ static const struct power_supply_desc smb_psy_desc = {
 	.properties = smb_properties,
 	.num_properties = ARRAY_SIZE(smb_properties),
 	.get_property = smb_get_property,
+	.external_power_changed = smb_external_power_changed,
 	.set_property = smb_set_property,
 	.property_is_writeable = smb_property_is_writable,
 };
@@ -1041,6 +1089,12 @@ static int smb_probe(struct platform_device *pdev)
 	if (!desc->name)
 		return -ENOMEM;
 
+	rc = devm_delayed_work_autocancel(chip->dev, &chip->status_change_work,
+					  smb_status_change_work);
+	if (rc)
+		return dev_err_probe(chip->dev, rc,
+				     "Failed to init status change work\n");
+
 	chip->chg_psy =
 		devm_power_supply_register(chip->dev, desc, &supply_config);
 	if (IS_ERR(chip->chg_psy))
@@ -1051,12 +1105,6 @@ static int smb_probe(struct platform_device *pdev)
 	if (rc)
 		return dev_err_probe(chip->dev, rc,
 				     "Failed to get battery info\n");
-
-	rc = devm_delayed_work_autocancel(chip->dev, &chip->status_change_work,
-					  smb_status_change_work);
-	if (rc)
-		return dev_err_probe(chip->dev, rc,
-				     "Failed to init status change work\n");
 
 	if (power_supply_battery_info_has_prop(chip->batt_info,
 					       POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX)) {
