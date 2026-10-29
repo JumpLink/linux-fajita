@@ -432,5 +432,48 @@ void qcom_icc_rpmh_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(qcom_icc_rpmh_remove);
 
+/**
+ * qcom_icc_rpmh_sync_state - sync_state that also drops unclaimed BCM votes
+ * @dev: interconnect provider device
+ *
+ * The bootloader can leave votes on BCMs that have no master or slave
+ * modelled in Linux. An RPMh vote stays in place until the same DRV
+ * overwrites it, so such a vote would never go away and can keep the SoC
+ * out of its deepest sleep states (AOSS refuses AOSD/CXSD). Providers list
+ * those BCMs with no nodes; they are committed once, at zero, together in
+ * one request, when the provider reaches sync_state.
+ */
+void qcom_icc_rpmh_sync_state(struct device *dev)
+{
+	struct qcom_icc_provider *qp = dev_get_drvdata(dev);
+	struct qcom_icc_bcm *bcm;
+	int queued = 0;
+	size_t i;
+	int ret;
+
+	icc_sync_state(dev);
+
+	if (!qp || !qp->voter)
+		return;
+
+	for (i = 0; i < qp->num_bcms; i++) {
+		bcm = qp->bcms[i];
+		if (bcm->num_nodes || !bcm->addr)
+			continue;
+		qcom_icc_bcm_voter_add(qp->voter, bcm);
+		queued++;
+	}
+
+	if (!queued)
+		return;
+
+	ret = qcom_icc_bcm_voter_commit(qp->voter);
+	if (ret)
+		dev_err(dev, "failed to drop unclaimed BCM votes: %d\n", ret);
+	else
+		dev_info(dev, "dropped %d unclaimed BCM vote(s)\n", queued);
+}
+EXPORT_SYMBOL_GPL(qcom_icc_rpmh_sync_state);
+
 MODULE_DESCRIPTION("Qualcomm RPMh interconnect driver");
 MODULE_LICENSE("GPL v2");

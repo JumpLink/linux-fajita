@@ -1328,6 +1328,27 @@ static struct qcom_icc_bcm bcm_sh5 = {
 	.nodes = { &qnm_apps },
 };
 
+/*
+ * cmd-db "SH4" (0x5002c) and "ALC" (0x50010): no master/slave in this driver
+ * uses them, but the bootloader leaves votes on both through the apps RSC
+ * DRV. Left alone, those votes keep the AOSS out of AOSD/CXSD forever.
+ * Listed without nodes so qcom_icc_rpmh_sync_state() commits them at zero.
+ * Zero both in the same request: zeroing ALC while SH4 stayed voted hung
+ * the SoC in testing. Downstream (msm_bus) names: bcm-sh4, bcm-alc
+ * (mas-alc on mc_virt).
+ */
+static struct qcom_icc_bcm bcm_sh4 = {
+	.name = "SH4",
+	.keepalive = false,
+	.num_nodes = 0,
+};
+
+static struct qcom_icc_bcm bcm_alc = {
+	.name = "ALC",
+	.keepalive = false,
+	.num_nodes = 0,
+};
+
 static struct qcom_icc_bcm bcm_sn0 = {
 	.name = "SN0",
 	.keepalive = true,
@@ -1652,6 +1673,8 @@ static struct qcom_icc_bcm * const mem_noc_bcms[] = {
 	&bcm_sh2,
 	&bcm_sh3,
 	&bcm_sh5,
+	&bcm_sh4,
+	&bcm_alc,
 };
 
 static struct qcom_icc_node * const mem_noc_nodes[] = {
@@ -1786,7 +1809,7 @@ static struct platform_driver qnoc_driver = {
 	.driver = {
 		.name = "qnoc-sdm845",
 		.of_match_table = qnoc_of_match,
-		.sync_state = icc_sync_state,
+		.sync_state = qcom_icc_rpmh_sync_state,
 	},
 };
 module_platform_driver(qnoc_driver);
