@@ -970,8 +970,17 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep, unsigned int action)
 	/*
 	 * Issue StartTransfer here with no-op TRB so we can always rely on No
 	 * Response Update Transfer command.
+	 *
+	 * If the endpoint was disabled while its End Transfer was delayed
+	 * (DWC3_EP_DELAY_STOP, ep0 not in SETUP phase), the old transfer is
+	 * still active in the controller: a new Start Transfer now fails with
+	 * "No Resource". Skip it and let the delayed End Transfer run first;
+	 * its completion clears DWC3_EP_TRANSFER_STARTED and kicks any queued
+	 * requests through DWC3_EP_DELAY_START.
 	 */
-	if (usb_endpoint_xfer_bulk(desc) ||
+	if (dep->flags & DWC3_EP_DELAY_STOP) {
+		dep->flags |= DWC3_EP_DELAY_START;
+	} else if (usb_endpoint_xfer_bulk(desc) ||
 			usb_endpoint_xfer_int(desc)) {
 		struct dwc3_gadget_ep_cmd_params params;
 		struct dwc3_trb	*trb;
