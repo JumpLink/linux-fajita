@@ -318,9 +318,18 @@ int rpmh_write(const struct device *dev, enum rpmh_state state,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&compl, RPMH_TIMEOUT_MS);
-	WARN_ON(!ret);
-	return (ret > 0) ? 0 : -ETIMEDOUT;
+	if (!wait_for_completion_timeout(&compl, RPMH_TIMEOUT_MS)) {
+		/*
+		 * The TCS still points at rpm_msg, which lives on this stack.
+		 * Returning now would let a late TX-done interrupt complete()
+		 * a dead stack frame, so warn and keep waiting.
+		 */
+		WARN(1, "rpmh: no TX done after %u ms for addr %#x, waiting\n",
+		     jiffies_to_msecs(RPMH_TIMEOUT_MS), rpm_msg.msg.cmds[0].addr);
+		wait_for_completion(&compl);
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rpmh_write);
 
@@ -431,20 +440,23 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 
 	time_left = RPMH_TIMEOUT_MS;
 	while (i--) {
-		time_left = wait_for_completion_timeout(&compls[i], time_left);
+		if (time_left)
+			time_left = wait_for_completion_timeout(&compls[i],
+								time_left);
 		if (!time_left) {
 			/*
-			 * Better hope they never finish because they'll signal
-			 * the completion that we're going to free once
-			 * we've returned from this function.
+			 * The TCSes still point at rpm_msgs[] and compls[],
+			 * which are freed below. A late TX-done interrupt
+			 * would then complete() freed memory, so warn and
+			 * keep waiting until every sent message is done.
 			 */
-			WARN_ON(1);
-			ret = -ETIMEDOUT;
-			goto exit;
+			WARN_ONCE(1, "rpmh: no TX done after %u ms for addr %#x, waiting\n",
+				  jiffies_to_msecs(RPMH_TIMEOUT_MS),
+				  rpm_msgs[i].msg.cmds[0].addr);
+			wait_for_completion(&compls[i]);
 		}
 	}
 
-exit:
 	kfree(ptr);
 
 	return ret;
