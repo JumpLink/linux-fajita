@@ -1288,6 +1288,8 @@ struct ufs_hba {
 	u8 device_preshoot_cap;
 	u8 device_deemphasis_cap;
 	struct ufshcd_tx_eq_params tx_eq_params[UFS_HS_GEAR_MAX];
+	/* OPP rate dropped in ufshcd_suspend(), restored in ufshcd_resume() */
+	unsigned long opp_suspend_freq;
 };
 
 /**

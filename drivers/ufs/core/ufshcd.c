@@ -10785,6 +10785,21 @@ static int ufshcd_suspend(struct ufs_hba *hba)
 					hba->clk_gating.state);
 	}
 
+	/*
+	 * Clocks are off: drop the OPP too, so its required-opps (the power
+	 * domain performance level, e.g. CX on Qualcomm) and interconnect votes
+	 * go away. Otherwise a runtime-active controller keeps CX at its active
+	 * corner through system suspend and the SoC never reaches CX collapse.
+	 */
+	if (hba->use_pm_opp && !hba->opp_suspend_freq) {
+		hba->opp_suspend_freq = hba->devfreq ?
+					hba->devfreq->previous_freq : ULONG_MAX;
+		if (!hba->opp_suspend_freq)
+			hba->opp_suspend_freq = ULONG_MAX;
+		if (dev_pm_opp_set_rate(hba->dev, 0))
+			hba->opp_suspend_freq = 0;
+	}
+
 	ufshcd_vreg_set_lpm(hba);
 	/* Put the host controller in low power mode if possible */
 	ufshcd_hba_vreg_set_lpm(hba);
@@ -10816,6 +10831,14 @@ static int ufshcd_resume(struct ufs_hba *hba)
 	ret = ufshcd_vreg_set_hpm(hba);
 	if (ret)
 		goto out;
+
+	/* Restore the OPP dropped in ufshcd_suspend() before clocks run */
+	if (hba->opp_suspend_freq) {
+		ret = ufshcd_opp_set_rate(hba, hba->opp_suspend_freq);
+		if (ret)
+			goto disable_vreg;
+		hba->opp_suspend_freq = 0;
+	}
 
 	/* Make sure clocks are enabled before accessing controller */
 	ret = ufshcd_setup_clocks(hba, true);
