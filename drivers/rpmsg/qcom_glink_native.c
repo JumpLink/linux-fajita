@@ -897,6 +897,7 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 
 static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 {
+	struct rpmsg_device *rpdev;
 	struct glink_core_rx_intent *intent;
 	struct glink_channel *channel;
 	struct {
@@ -1006,8 +1007,10 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 
 		qcom_glink_rx_done(glink, channel, intent);
 
-		pm_wakeup_ws_event(channel->ept.rpdev->dev.power.wakeup, 0,
-				   true);
+		/* ept.rpdev is not set until qcom_glink_create_ept() ran */
+		rpdev = READ_ONCE(channel->ept.rpdev);
+		if (rpdev)
+			pm_wakeup_ws_event(rpdev->dev.power.wakeup, 0, true);
 	}
 
 advance_rx:
