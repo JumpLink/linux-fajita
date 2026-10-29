@@ -5697,6 +5697,13 @@ static const struct snd_soc_dapm_route wcd934x_audio_map[] = {
 	{"AIF1 CAP", NULL, "AIF1_CAP Mixer"},
 	{"AIF2 CAP", NULL, "AIF2_CAP Mixer"},
 	{"AIF3 CAP", NULL, "AIF3_CAP Mixer"},
+	/*
+	 * The TX chain (ADC, decimators, SLIM TX) runs on MCLK too. Without
+	 * these routes capture only worked while MCLK happened to be left on.
+	 */
+	{"AIF1 CAP", NULL, "MCLK"},
+	{"AIF2 CAP", NULL, "MCLK"},
+	{"AIF3 CAP", NULL, "MCLK"},
 
 	WCD934X_SLIM_TX_AIF_PATH(0),
 	WCD934X_SLIM_TX_AIF_PATH(1),
