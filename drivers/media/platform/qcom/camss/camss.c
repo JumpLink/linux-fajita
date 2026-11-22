@@ -2227,6 +2227,30 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 	},
 };
 
+static const struct resources_icc icc_res_845[] = {
+	/* Same values as sm8250, plus the second HF port SDM845 splits its VFEs across */
+	{
+		.name = "ahb",
+		.icc_bw_tbl.avg = 38400,
+		.icc_bw_tbl.peak = 76800,
+	},
+	{
+		.name = "hf_0",
+		.icc_bw_tbl.avg = 2097152,
+		.icc_bw_tbl.peak = 2097152,
+	},
+	{
+		.name = "hf_1",
+		.icc_bw_tbl.avg = 2097152,
+		.icc_bw_tbl.peak = 2097152,
+	},
+	{
+		.name = "sf_mnoc",
+		.icc_bw_tbl.avg = 0,
+		.icc_bw_tbl.peak = 2097152,
+	},
+};
+
 static const struct resources_icc icc_res_sm8250[] = {
 	{
 		.name = "cam_ahb",
@@ -5705,6 +5729,8 @@ static const struct camss_resources sdm845_resources = {
 	.csiphy_res = csiphy_res_845,
 	.csid_res = csid_res_845,
 	.vfe_res = vfe_res_845,
+	.icc_res = icc_res_845,
+	.icc_path_num = ARRAY_SIZE(icc_res_845),
 	.csiphy_num = ARRAY_SIZE(csiphy_res_845),
 	.csid_num = ARRAY_SIZE(csid_res_845),
 	.vfe_num = ARRAY_SIZE(vfe_res_845),
