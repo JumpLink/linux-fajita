@@ -311,7 +311,12 @@ static void dsi_pll_enable_pll_bias(struct dsi_pll_10nm *pll)
 {
 	u32 data = readl(pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 
-	writel(data | BIT(5), pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	/*
+	 * Also power up the digital top (BIT(6)): the clock core may enable the
+	 * PLL at probe time, before dsi_10nm_phy_enable() has run, and the PLL
+	 * does not lock without it.
+	 */
+	writel(data | BIT(6) | BIT(5), pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 	writel(0xc0, pll->phy->pll_base + REG_DSI_10nm_PHY_PLL_SYSTEM_MUXES);
 	ndelay(250);
 }
