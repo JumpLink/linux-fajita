@@ -1281,6 +1281,7 @@ static struct qcom_icc_bcm bcm_sh1 = {
 static struct qcom_icc_bcm bcm_mm1 = {
 	.name = "MM1",
 	.keepalive = true,
+	.keepalive_sleep = true,
 	.num_nodes = 7,
 	.nodes = { &qxm_camnoc_hf0_uncomp,
 		   &qxm_camnoc_hf1_uncomp,
