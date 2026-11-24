@@ -91,7 +91,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 			container_of(work, struct venus_core, work.work);
 	int ret, i, max_attempts = RPM_WAIT_FOR_IDLE_MAX_ATTEMPTS;
 	const char *err_msg = "";
-	bool failed = false;
+	bool failed = false, irq_enabled;
 
 	ret = pm_runtime_get_sync(core->dev);
 	if (ret < 0) {
@@ -147,20 +147,30 @@ static void venus_sys_error_handler(struct work_struct *work)
 		failed = true;
 	}
 
-	enable_irq(core->irq);
+	/*
+	 * With the firmware not booted, its level interrupt can stay asserted
+	 * and unmasking it storms the CPU this worker runs on, starving the
+	 * recovery itself. Keep it masked and retry.
+	 */
+	irq_enabled = !failed;
+	if (irq_enabled)
+		enable_irq(core->irq);
 
 	mutex_unlock(&core->lock);
 
-	ret = hfi_core_init(core);
-	if (ret && !failed) {
-		err_msg = "init HFI";
-		failed = true;
+	if (!failed) {
+		ret = hfi_core_init(core);
+		if (ret) {
+			err_msg = "init HFI";
+			failed = true;
+		}
 	}
 
 	pm_runtime_put_sync(core->dev);
 
 	if (failed) {
-		disable_irq_nosync(core->irq);
+		if (irq_enabled)
+			disable_irq_nosync(core->irq);
 		dev_warn_ratelimited(core->dev,
 				     "System error has occurred, recovery failed to %s\n",
 				     err_msg);
