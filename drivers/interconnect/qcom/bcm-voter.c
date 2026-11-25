@@ -75,6 +75,13 @@ static void bcm_aggregate_mask(struct qcom_icc_bcm *bcm)
 		bcm->vote_y[QCOM_ICC_BUCKET_AMC] = bcm->enable_mask;
 		bcm->vote_y[QCOM_ICC_BUCKET_WAKE] = bcm->enable_mask;
 	}
+
+	if (bcm->keepalive_sleep) {
+		for (bucket = 0; bucket < QCOM_ICC_NUM_BUCKETS; bucket++) {
+			bcm->vote_x[bucket] = bcm->enable_mask;
+			bcm->vote_y[bucket] = bcm->enable_mask;
+		}
+	}
 }
 
 static void bcm_aggregate(struct qcom_icc_bcm *bcm)
@@ -110,6 +117,15 @@ static void bcm_aggregate(struct qcom_icc_bcm *bcm)
 		bcm->vote_x[QCOM_ICC_BUCKET_WAKE] = 1;
 		bcm->vote_y[QCOM_ICC_BUCKET_AMC] = 1;
 		bcm->vote_y[QCOM_ICC_BUCKET_WAKE] = 1;
+	}
+
+	if (bcm->keepalive_sleep) {
+		for (bucket = 0; bucket < QCOM_ICC_NUM_BUCKETS; bucket++) {
+			if (bcm->vote_x[bucket] == 0 && bcm->vote_y[bucket] == 0) {
+				bcm->vote_x[bucket] = 1;
+				bcm->vote_y[bucket] = 1;
+			}
+		}
 	}
 }
 
