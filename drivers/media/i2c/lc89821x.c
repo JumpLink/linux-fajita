@@ -40,6 +40,7 @@ struct lc89821x_chip {
 };
 
 static const char *const lc89821x_supply_names[] = {
+	"vio",
 	"vdd",
 };
 
