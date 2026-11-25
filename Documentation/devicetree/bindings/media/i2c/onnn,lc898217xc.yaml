@@ -31,6 +31,11 @@ properties:
     description:
       Definition of the regulator used as digital core voltage supply.
 
+  vio-supply:
+    description:
+      Definition of the regulator powering the I2C interface, i.e. the
+      pull-ups of the bus the lens shares with the camera sensor.
+
 required:
   - compatible
   - reg
