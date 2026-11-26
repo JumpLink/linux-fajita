@@ -1,0 +1,33 @@
+diff a/arch/arm64/boot/dts/qcom/sdm845-hdk.dts b/arch/arm64/boot/dts/qcom/sdm845-hdk.dts	(rejected hunks)
+@@ -520,19 +530,26 @@ &pcie0_phy {
+ };
+ 
+ &pcie1 {
+-	perst-gpios = <&tlmm 102 GPIO_ACTIVE_LOW>;
++	status = "okay";
++	vddpe-3v3-supply = <&vreg_pcie1_3v3>; 	
+ 
+-	pinctrl-names = "default";
+ 	pinctrl-0 = <&pcie1_default_state>;
+ 
+-	status = "okay";
++	vdda-supply = <&vreg_l26a_1p2>; 
++	max-link-speed = <1>;
++	linux,pci-domain = <1>;
+ };
+ 
+-&pcie1_phy {
+-	status = "okay";
++&pcie1_port0 {
++	reset-gpios = <&tlmm 102 GPIO_ACTIVE_LOW>;
++	wake-gpios = <&tlmm 104 GPIO_ACTIVE_HIGH>;
++};
+ 
++&pcie1_phy {
+ 	vdda-phy-supply = <&vreg_l1a_0p88>;
+ 	vdda-pll-supply = <&vreg_l26a_1p2>;
++
++	status = "okay";
+ };
+ 
+ &pm8998_gpios {
