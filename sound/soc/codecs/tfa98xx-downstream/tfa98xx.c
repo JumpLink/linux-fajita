@@ -1418,6 +1418,15 @@ static int tfa98xx_startup(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	/*
+	 * On a DPCM back end the runtime is the front end's, and the back
+	 * end's own rate comes from the link's be_hw_params_fixup. Limiting
+	 * the front end to the profile's rate would refuse an 8 kHz voice
+	 * call front end routed to the speaker.
+	 */
+	if (snd_soc_substream_to_rtd(substream)->dai_link->no_pcm)
+		return 0;
+
 	basename = kzalloc(MAX_CONTROL_NAME, GFP_KERNEL);
 	if (!basename)
 		return -ENOMEM;
