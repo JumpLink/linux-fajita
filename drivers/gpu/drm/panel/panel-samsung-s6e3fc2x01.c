@@ -262,12 +262,10 @@ static int s6e3fc2x01_panel_bl_update_status(struct backlight_device *bl)
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
 	err = mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
-	if (err < 0)
-		return err;
 
 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
-	return 0;
+	return err < 0 ? err : 0;
 }
 
 static const struct backlight_ops s6e3fc2x01_panel_bl_ops = {
