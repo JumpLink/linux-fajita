@@ -321,6 +321,15 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 			}
 		}
 
+		/*
+		 * The WCD934x interpolator gains go up to +40 dB. Userspace that
+		 * maps full volume to the top of the range (PipeWire, PulseAudio)
+		 * clips there, so stop them at 0 dB.
+		 */
+		snd_soc_limit_volume(card, "RX0 Digital Volume", 84);
+		snd_soc_limit_volume(card, "RX1 Digital Volume", 84);
+		snd_soc_limit_volume(card, "RX2 Digital Volume", 84);
+
 		pdata->slim_port_setup = true;
 
 		break;
