@@ -363,6 +363,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-sdm845", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x13000>;
 			sram = <&minidump_config>;
 		};
 	};
@@ -2834,6 +2835,11 @@
 		tcsr_regs_1: syscon@1f60000 {
 			compatible = "qcom,sdm845-tcsr", "syscon";
 			reg = <0 0x01f60000 0 0x20000>;
+		};
+
+		tcsr: syscon@1fc0000 {
+			compatible = "qcom,sdm845-tcsr", "syscon";
+			reg = <0 0x01fc0000 0 0x30000>;
 		};
 
 		tlmm: pinctrl@3400000 {
